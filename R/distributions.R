@@ -1,342 +1,263 @@
-# SADProject - Distribution Analysis Functions
-# Functions for visualizing distributions of all variables
+# frequences.R
+# Funzioni per visualizzare le distribuzioni dei dati
 
-#' Plot distribution for a numeric variable
-#'
-#' @param data Data frame
-#' @param col_name Character string. Column name
-#' @param output_dir Character string. Output directory for plots
-#' @return Character string. Path to saved plot
-plot_numeric_distribution <- function(data, col_name, output_dir = "output/distributions") {
-  if (!col_name %in% colnames(data)) {
-    stop(sprintf("Column '%s' not found in data.", col_name))
-  }
-  
-  if (!dir.exists(output_dir)) {
-    dir.create(output_dir, recursive = TRUE)
-  }
-  
-  col_data <- data[[col_name]]
-  
-  # Remove NA values for plotting
-  col_data_clean <- col_data[!is.na(col_data)]
-  
-  if (length(col_data_clean) == 0) {
-    warning(sprintf("No valid data for column '%s'. Skipping plot.", col_name))
-    return(NULL)
-  }
-  
-  # Source data dictionary if not already available
-  if (!exists("get_column_description", envir = .GlobalEnv)) {
-    source("R/data_dictionary.R")
-  }
-  
-  # Get column description
-  col_description <- get_column_description(col_name)
-  if (is.null(col_description)) {
-    col_description <- col_name  # Fallback to column name if no description
-  }
-  
-  # Create combined plot: histogram + density + boxplot
-  plot_path <- file.path(output_dir, sprintf("%s_distribution.png", col_name))
-  png(plot_path, width = 1200, height = 800)
-  
-  # Set up 2x2 layout
-  par(mfrow = c(2, 2), mar = c(4, 4, 4, 2))
-  
-  # 1. Histogram
-  hist(col_data_clean,
-       main = sprintf("Istogramma: %s\n%s", col_name, col_description),
-       xlab = col_name,
-       ylab = "Frequenza",
-       col = "steelblue",
-       border = "white",
-       breaks = "Sturges",
-       cex.main = 0.9)
-  
-  # 2. Density plot
-  dens <- density(col_data_clean)
-  plot(dens,
-       main = sprintf("Densità: %s\n%s", col_name, col_description),
-       xlab = col_name,
-       ylab = "Densità",
-       col = "darkblue",
-       lwd = 2,
-       cex.main = 0.9)
-  polygon(dens, col = rgb(0.2, 0.4, 0.8, 0.3), border = "darkblue")
-  
-  # 3. Boxplot
-  boxplot(col_data_clean,
-          main = sprintf("Boxplot: %s\n%s", col_name, col_description),
-          ylab = col_name,
-          col = "lightblue",
-          border = "darkblue",
-          horizontal = TRUE,
-          cex.main = 0.9)
-  
-  # 4. Summary statistics text
-  plot.new()
-  par(mar = c(0, 0, 0, 0))
-  stats_text <- c(
-    sprintf("Statistiche descrittive: %s", col_name),
-    sprintf("Descrizione: %s", col_description),
-    "",
-    sprintf("Media: %.3f", mean(col_data_clean)),
-    sprintf("Mediana: %.3f", median(col_data_clean)),
-    sprintf("Deviazione Standard: %.3f", sd(col_data_clean)),
-    sprintf("Min: %.3f", min(col_data_clean)),
-    sprintf("Max: %.3f", max(col_data_clean))
-  )
-  text(0.5, 0.5, paste(stats_text, collapse = "\n"),
-       cex = 1.2, family = "mono", adj = c(0.5, 0.5))
-  
-  dev.off()
-  
-  return(plot_path)
-}
+# Palette per presentazioni universitarie (blu/grigi sobri)
+COL_FILL    <- "#5B8FA3"   # Blu muted per barre/istogrammi
+COL_BORDER  <- "#2C3E50"   # Grigio ardesia per bordi
+COL_DENSITY <- "#1A5276"   # Blu scuro per curva di densità
 
-#' Plot distribution for a categorical variable
+#' Restituisce un'etichetta formattata per una variabile combinando il nome della variabile
+#' con la sua descrizione dal data dictionary. Se la descrizione è disponibile, restituisce
+#' "NomeVariabile (Descrizione)", altrimenti restituisce solo il nome della variabile.
 #'
-#' @param data Data frame
-#' @param col_name Character string. Column name
-#' @param output_dir Character string. Output directory for plots
-#' @return Character string. Path to saved plot
-plot_categorical_distribution <- function(data, col_name, output_dir = "output/distributions") {
-  if (!col_name %in% colnames(data)) {
-    stop(sprintf("Column '%s' not found in data.", col_name))
-  }
-  
-  if (!dir.exists(output_dir)) {
-    dir.create(output_dir, recursive = TRUE)
-  }
-  
-  col_data <- data[[col_name]]
-  
-  # Remove NA values for counting
-  col_data_clean <- col_data[!is.na(col_data)]
-  
-  if (length(col_data_clean) == 0) {
-    warning(sprintf("No valid data for column '%s'. Skipping plot.", col_name))
-    return(NULL)
-  }
-  
-  # Count frequencies
-  freq_table <- table(col_data_clean)
-  freq_df <- data.frame(
-    Value = names(freq_table),
-    Count = as.numeric(freq_table),
-    stringsAsFactors = FALSE
-  )
-  freq_df$Percentage <- (freq_df$Count / length(col_data_clean)) * 100
-  
-  # Source data dictionary if not already available
-  if (!exists("get_categorical_labels", envir = .GlobalEnv)) {
-    source("R/data_dictionary.R")
-  }
-  
-  # Get column description
-  col_description <- get_column_description(col_name)
-  if (is.null(col_description)) {
-    col_description <- col_name  # Fallback to column name if no description
-  }
-  
-  # Get labels for this column if available
-  labels <- get_categorical_labels()
-  if (col_name %in% names(labels)) {
-    # Map numeric values to their labels
-    value_labels <- labels[[col_name]]
-    freq_df$Label <- sapply(freq_df$Value, function(v) {
-      if (as.character(v) %in% names(value_labels)) {
-        return(value_labels[[as.character(v)]])
-      }
-      return(as.character(v))
-    })
-    # Create combined label: "Valore (Etichetta)" or just "Etichetta"
-    freq_df$DisplayLabel <- paste0(freq_df$Value, " = ", freq_df$Label)
+#' Questa funzione è utilizzata per migliorare la leggibilità dei grafici aggiungendo descrizioni
+#' informative alle etichette degli assi e dei titoli.
+#'
+#' @param var_name Stringa carattere. Nome della variabile di cui si vuole l'etichetta formattata.
+#'
+#' @return Stringa carattere. Etichetta formattata con formato "NomeVariabile (Descrizione)"
+#'   se la descrizione è disponibile nel data dictionary, altrimenti solo "NomeVariabile".
+label_with_description <- function(var_name) {
+  desc <- get_column_description(var_name)
+  if (!is.null(desc) && nchar(desc) > 0) {
+    paste0(var_name, " (", desc, ")")
   } else {
-    freq_df$Label <- freq_df$Value
-    freq_df$DisplayLabel <- as.character(freq_df$Value)
+    var_name
   }
-  
-  freq_df <- freq_df[order(-freq_df$Count), ]  # Sort by frequency
-  
-  # Create combined plot: barplot + pie chart + frequency table
-  plot_path <- file.path(output_dir, sprintf("%s_distribution.png", col_name))
-  png(plot_path, width = 1200, height = 800)
-  
-  # Set up 2x2 layout
-  par(mfrow = c(2, 2), mar = c(4, 4, 4, 2))
-  
-  # 1. Barplot (horizontal) with labels
-  barplot(freq_df$Count,
-          names.arg = freq_df$DisplayLabel,
-          main = sprintf("Distribuzione: %s\n%s", col_name, col_description),
-          xlab = "Frequenza",
-          ylab = "Valore",
-          col = "steelblue",
-          border = "white",
-          horiz = TRUE,
-          las = 1,
-          cex.names = 0.7,
-          cex.main = 0.9)
-  
-  # 2. Barplot (vertical) with percentages and labels
-  barplot(freq_df$Percentage,
-          names.arg = freq_df$DisplayLabel,
-          main = sprintf("Percentuali: %s\n%s", col_name, col_description),
-          xlab = "Valore",
-          ylab = "Percentuale (%)",
-          col = "lightblue",
-          border = "darkblue",
-          las = 2,
-          cex.names = 0.6,
-          cex.main = 0.9)
-  
-  # 3. Pie chart with labels
-  pie_labels <- paste0(freq_df$DisplayLabel, "\n(", sprintf("%.1f%%", freq_df$Percentage), ")")
-  pie(freq_df$Count,
-      labels = pie_labels,
-      main = sprintf("Distribuzione percentuale: %s\n%s", col_name, col_description),
-      col = rainbow(nrow(freq_df)),
-      cex = 0.7,
-      cex.main = 0.9)
-  
-  # 4. Summary statistics text
-  plot.new()
-  par(mar = c(0, 0, 0, 0))
-  # Build statistics text with labels
-  stats_lines <- c(
-    sprintf("Statistiche: %s", col_name),
-    sprintf("Descrizione: %s", col_description),
-    "",
-    sprintf("Numero di categorie: %d", nrow(freq_df)),
-    sprintf("Valore più frequente: %s (%.1f%%)", 
-            freq_df$DisplayLabel[1], freq_df$Percentage[1]),
-    sprintf("Valore meno frequente: %s (%.1f%%)", 
-            freq_df$DisplayLabel[nrow(freq_df)], freq_df$Percentage[nrow(freq_df)]),
-    "",
-    "Frequenze:"
-  )
-  
-  # Add frequency lines with labels
-  freq_lines <- sapply(seq_len(nrow(freq_df)), function(i) {
-    sprintf("  %s: %d (%.1f%%)", 
-            freq_df$DisplayLabel[i], freq_df$Count[i], freq_df$Percentage[i])
-  })
-  
-  stats_text <- c(
-    stats_lines,
-    freq_lines,
-    "",
-    sprintf("Valori mancanti: %d (%.1f%%)", 
-            sum(is.na(col_data)), 
-            (sum(is.na(col_data)) / length(col_data)) * 100)
-  )
-  text(0.5, 0.5, paste(stats_text, collapse = "\n"),
-       cex = 1.0, family = "mono", adj = c(0.5, 0.5))
-  
-  dev.off()
-  
-  return(plot_path)
 }
 
-#' Plot distributions for all variables in the dataset
+#' Genera grafici delle distribuzioni per tutte le variabili specificate nel dataset.
+#' La funzione rileva automaticamente se una variabile è quantitativa o qualitativa e genera
+#' il tipo di grafico appropriato:
+#' \itemize{
+#'   \item \strong{Variabili quantitative}: Genera un grafico composito con 4 pannelli:
+#'     \enumerate{
+#'       \item Istogramma con frequenze assolute
+#'       \item Istogramma con curva di densità sovrapposta
+#'       \item Boxplot orizzontale
+#'       \item Statistiche descrittive (media, mediana, SD, min, max, n)
+#'     }
+#'   \item \strong{Variabili qualitative}: Genera un barplot con frequenze per ogni categoria,
+#'     utilizzando le etichette dal data dictionary quando disponibili. I valori vengono mostrati
+#'     sopra ogni barra con sfondo semi-trasparente per migliorare la leggibilità.
+#' }
 #'
-#' @param data Data frame
-#' @param output_dir Character string. Output directory for plots
-#' @param exclude_cols Character vector. Column names to exclude from analysis
-#' @return List. Paths to all saved plots
-plot_all_distributions <- function(data, 
-                                    output_dir = "output/distributions",
-                                    exclude_cols = NULL) {
-  if (!is.data.frame(data)) {
-    stop("Input must be a data frame.")
-  }
+#' I grafici utilizzano una palette di colori coerente con il progetto (blu/grigi sobri) e
+#' vengono salvati come file PNG nella directory di output specificata.
+#'
+#' @param data Data frame. Dataset contenente le variabili da visualizzare.
+#' @param variables Vettore carattere o NULL. Nomi delle variabili da visualizzare.
+#'   Se NULL, vengono visualizzate tutte le colonne del dataset.
+#'   Predefinito: NULL.
+#' @param output_dir Stringa carattere. Directory dove salvare i grafici generati.
+#'   Predefinito: "output/distribuzioni". La directory viene creata automaticamente se non esiste.
+#'
+#' @return Invisibile. I grafici vengono salvati come file PNG nella directory di output.
+#'   Il nome del file è "{nome_variabile}_distribution.png".
+plot_distributions <- function(data,
+                               variables = NULL,
+                               output_dir = "output/distribuzioni") {
   
+  # Crea la directory di output se non esiste
   if (!dir.exists(output_dir)) {
     dir.create(output_dir, recursive = TRUE)
   }
   
-  # Get all column names
-  all_cols <- colnames(data)
-  
-  # Automatically exclude technical/metadata columns and target variable
-  technical_cols <- c("anomaly_score", "is_outlier", "class")
-  all_cols <- setdiff(all_cols, technical_cols)
-  
-  # Exclude specified columns
-  if (!is.null(exclude_cols)) {
-    all_cols <- setdiff(all_cols, exclude_cols)
+  # Se non specificate, usa tutte le variabili del dataset
+  if (is.null(variables)) {
+    variables <- colnames(data)
   }
   
-  if (length(all_cols) == 0) {
-    stop("No columns to plot.")
+  # Filtra le variabili presenti nel dataset
+  available_vars <- variables[variables %in% colnames(data)]
+  
+  if (length(available_vars) == 0) {
+    stop("Nessuna variabile trovata nel dataset")
   }
   
-  # Separate numeric and categorical columns
-  # A column is considered categorical if:
-  # 1. It's not numeric, OR
-  # 2. It's numeric but has <= 10 unique values (likely encoded categorical)
-  numeric_cols <- character()
-  categorical_cols <- character()
+  dict <- get_data_dictionary()
+  categorical_cols <- get_categorical_columns()
   
-  for (col in all_cols) {
-    col_data <- data[[col]]
-    unique_count <- length(unique(col_data[!is.na(col_data)]))
+  cat(sprintf("Generazione grafici di distribuzione per %d variabili...\n", length(available_vars)))
+  
+  for (var_name in available_vars) {
+    var_data <- data[[var_name]]
     
-    if (is.numeric(col_data)) {
-      # If numeric with few unique values, treat as categorical
-      if (unique_count <= 10 && unique_count < nrow(data) * 0.1) {
-        categorical_cols <- c(categorical_cols, col)
-      } else {
-        numeric_cols <- c(numeric_cols, col)
+    # Determina se la variabile è quantitativa o qualitativa
+    is_categorical <- var_name %in% categorical_cols || is.factor(var_data) || 
+                     (is.numeric(var_data) && length(unique(var_data)) <= 10)
+    
+    if (is_categorical) {
+      # ========================================================================
+      # DISTRIBUZIONE PER VARIABILI QUALITATIVE
+      # ========================================================================
+      
+      # Calcola le frequenze
+      freq_table <- table(var_data, useNA = "ifany")
+      freq_names <- names(freq_table)
+      
+      # Prepara le etichette usando il data dictionary
+      plot_labels <- character(length(freq_names))
+      labels_dict <- dict$labels[[var_name]]
+      
+      for (i in seq_along(freq_names)) {
+        if (is.na(freq_names[i])) {
+          plot_labels[i] <- "NA"
+        } else if (!is.null(labels_dict) && freq_names[i] %in% names(labels_dict)) {
+          plot_labels[i] <- labels_dict[[freq_names[i]]]
+        } else {
+          plot_labels[i] <- as.character(freq_names[i])
+        }
       }
+      
+      # Salva il barplot
+      png_file <- file.path(output_dir, paste0(var_name, "_distribution.png"))
+      
+      # Calcola l'altezza necessaria in base alla lunghezza delle etichette
+      max_label_length <- max(nchar(plot_labels))
+      # Aumenta l'altezza se le etichette sono lunghe
+      base_height <- 600
+      extra_height <- ifelse(max_label_length > 15, 200, 0)
+      png(png_file, width = 1200, height = base_height + extra_height, res = 150)
+      
+      # Aumenta i margini inferiori per le etichette lunghe
+      bottom_margin <- ifelse(max_label_length > 15, 12, 8)
+      # Aumenta il margine superiore per separare il titolo dal grafico
+      par(mar = c(bottom_margin, 5, 6, 2))
+      
+      # Calcola lo spazio necessario sopra le barre per i numeri
+      max_freq <- max(freq_table)
+      # Aumenta il limite superiore dell'asse Y per dare spazio ai numeri
+      y_upper_limit <- max_freq * 1.15
+      
+      # Calcola le posizioni delle barre per aggiungere i valori
+      var_label <- label_with_description(var_name)
+      bp <- barplot(freq_table,
+                    names.arg = plot_labels,
+                    col = COL_FILL,
+                    border = COL_BORDER,
+                    main = sprintf("Distribuzione di %s", var_label),
+                    xlab = "",
+                    ylab = "Frequenza",
+                    las = 2,
+                    cex.names = ifelse(max_label_length > 15, 0.7, 0.8),
+                    cex.main = 1.2,
+                    ylim = c(0, y_upper_limit))  # Aumenta lo spazio sopra le barre
+      
+      # Aggiunge i valori sopra le barre con sfondo per migliorare la leggibilità
+      text_y_positions <- freq_table + max_freq * 0.08  # Posiziona il testo più in alto
+      
+      for (i in seq_along(bp)) {
+        # Calcola le dimensioni del testo
+        text_label <- as.character(freq_table[i])
+        text_width <- strwidth(text_label, cex = 1.0)
+        text_height <- strheight(text_label, cex = 1.0)
+        
+        # Disegna uno sfondo bianco semi-trasparente per il testo (senza bordo)
+        rect(xleft = bp[i] - text_width/2 - 0.02,
+             ybottom = text_y_positions[i] - text_height/2 - 0.01,
+             xright = bp[i] + text_width/2 + 0.02,
+             ytop = text_y_positions[i] + text_height/2 + 0.01,
+             col = rgb(1, 1, 1, alpha = 0.8),
+             border = NA)  # Nessun bordo
+        
+        # Aggiunge il testo in nero e più grande
+        text(x = bp[i],
+             y = text_y_positions[i],
+             labels = text_label,
+             cex = 1.0,
+             col = "black",
+             font = 2)  # font = 2 per grassetto
+      }
+      
+      dev.off()
+      cat(sprintf("✓ Grafico salvato: %s\n", png_file))
+      
+    } else if (is.numeric(var_data)) {
+      # ========================================================================
+      # DISTRIBUZIONE PER VARIABILI QUANTITATIVE
+      # ========================================================================
+      
+      # Rimuove eventuali valori mancanti
+      var_data_clean <- var_data[!is.na(var_data)]
+      
+      if (length(var_data_clean) == 0) {
+        cat(sprintf("⚠️  '%s' contiene solo valori mancanti, saltata\n", var_name))
+        next
+      }
+      
+      # Salva un grafico combinato con istogramma, densità e boxplot
+      png_file <- file.path(output_dir, paste0(var_name, "_distribution.png"))
+      png(png_file, width = 1400, height = 1000, res = 150)
+      
+      # Layout: 2 righe, 2 colonne (istogramma, istogramma+densità, boxplot, statistiche)
+      layout(matrix(c(1, 2, 3, 4), 2, 2, byrow = TRUE))
+      
+      var_label <- label_with_description(var_name)
+      # 1. Istogramma con frequenze
+      # Aumenta il margine superiore per separare il titolo dal grafico
+      par(mar = c(5, 5, 6, 2))
+      hist(var_data_clean,
+           breaks = "Sturges",
+           col = COL_FILL,
+           border = COL_BORDER,
+           main = sprintf("Istogramma di %s", var_label),
+           xlab = var_label,
+           ylab = "Frequenza",
+           probability = FALSE,
+           cex.main = 1.1,
+           cex.lab = 1.0)
+      
+      # 2. Istogramma con curva di densità
+      par(mar = c(5, 5, 6, 2))
+      hist(var_data_clean,
+           breaks = "Sturges",
+           col = COL_FILL,
+           border = COL_BORDER,
+           main = sprintf("Istogramma con Densità di %s", var_label),
+           xlab = var_label,
+           ylab = "Densità",
+           probability = TRUE,
+           cex.main = 1.1,
+           cex.lab = 1.0)
+      lines(density(var_data_clean), col = COL_DENSITY, lwd = 2)
+      
+      # 3. Boxplot
+      par(mar = c(5, 5, 6, 2))
+      boxplot(var_data_clean,
+              col = COL_FILL,
+              border = COL_BORDER,
+              main = sprintf("Boxplot di %s", var_label),
+              ylab = var_label,
+              horizontal = TRUE,
+              cex.main = 1.1,
+              cex.lab = 1.0)
+      
+      # 4. Statistiche descrittive
+      par(mar = c(4, 4, 4, 4))
+      plot.new()
+      stats_text <- sprintf(
+        "Statistiche Descrittive\n\nMedia: %.2f\nMediana: %.2f\nSD: %.2f\nMin: %.2f\nMax: %.2f\nn: %d",
+        mean(var_data_clean),
+        median(var_data_clean),
+        sd(var_data_clean),
+        min(var_data_clean),
+        max(var_data_clean),
+        length(var_data_clean)
+      )
+      
+      text(0.5, 0.5, stats_text,
+           cex = 1.1,
+           family = "mono",
+           adj = c(0.5, 0.5))
+      
+      dev.off()
+      cat(sprintf("✓ Grafico salvato: %s\n", png_file))
+      
     } else {
-      categorical_cols <- c(categorical_cols, col)
+      cat(sprintf("⚠️  Tipo di variabile non supportato per '%s', saltata\n", var_name))
     }
   }
   
-  cat(sprintf("\n=== Generazione distribuzioni ===\n"))
-  cat(sprintf("Colonne numeriche: %d\n", length(numeric_cols)))
-  cat(sprintf("Colonne categoriche: %d\n", length(categorical_cols)))
-  cat(sprintf("Directory output: %s\n\n", output_dir))
-  
-  plot_paths <- list()
-  
-  # Plot numeric distributions
-  if (length(numeric_cols) > 0) {
-    cat("Generazione plot per variabili numeriche...\n")
-    for (col_name in numeric_cols) {
-      tryCatch({
-        path <- plot_numeric_distribution(data, col_name, output_dir)
-        if (!is.null(path)) {
-          plot_paths[[col_name]] <- path
-          cat(sprintf("  ✓ %s\n", col_name))
-        }
-      }, error = function(e) {
-        warning(sprintf("Errore nel plot di '%s': %s", col_name, e$message))
-      })
-    }
-  }
-  
-  # Plot categorical distributions
-  if (length(categorical_cols) > 0) {
-    cat("\nGenerazione plot per variabili categoriche...\n")
-    for (col_name in categorical_cols) {
-      tryCatch({
-        path <- plot_categorical_distribution(data, col_name, output_dir)
-        if (!is.null(path)) {
-          plot_paths[[col_name]] <- path
-          cat(sprintf("  ✓ %s\n", col_name))
-        }
-      }, error = function(e) {
-        warning(sprintf("Errore nel plot di '%s': %s", col_name, e$message))
-      })
-    }
-  }
-  
-  cat(sprintf("\n=== Completato: %d plot generati ===\n", length(plot_paths)))
-  
-  return(invisible(plot_paths))
+  cat(sprintf("\n✓ Generazione distribuzioni completata per %d variabili\n", length(available_vars)))
 }
-

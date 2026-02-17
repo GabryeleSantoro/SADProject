@@ -6,7 +6,7 @@
 | AGE                            | Età del soggetto in anni                                | Valori reali continui (es. 15-52)                                      |
 | Height                         | Altezza del soggetto in metri                           | Valori reali continui (es. 1.5-1.98)                                   |
 | Weight                         | Peso del soggetto in chilogrammi                        | Valori reali continui (es. 75-125)                                     |
-| family_history_with_overweight | Presenza di casi di sovrappeso in famiglia              | 0 = No, 1 = Sì                                                         |
+| fhwo                           | Presenza di casi di sovrappeso in famiglia              | 0 = No, 1 = Sì                                                         |
 | FAVC                           | Consumo frequente di cibi ad alto contenuto calorico    | 0 = No, 1 = Sì                                                         |
 | FCVC                           | Frequenza di consumo di verdure                         | 1 = Mai, 2 = A volte, 3 = Sempre                                       |
 | NCP                            | Numero di pasti principali al giorno                    | 1 = 1 pasto, 2 = 2 pasti, 3 = 3 pasti, 4 = 4+ pasti                    |

@@ -7,9 +7,8 @@
 
 # Lista dei pacchetti necessari per il progetto
 packages <- c(
-  "dplyr",           # Manipolazione e trasformazione dati
-  "tidyr",           # Pulizia e organizzazione dati
-  "isotree"          # Alberi di regressione isotropi
+  "FactoMineR",      # MCA - analisi in componenti principali per variabili qualitative
+  "gridExtra"        # Generazione tabelle PNG per visualizzazioni
 )
 
 # Verifica se i pacchetti sono installati
