@@ -1016,10 +1016,6 @@ contingency_bivariate_analysis <- function(data,
   invisible(results)
 }
 
-# =============================================================================
-# Valutazione adattamento dati sintetici a distribuzioni note
-# =============================================================================
-
 #' Valuta se i dati sintetici seguono distribuzioni statistiche note utilizzando test statistici
 #' e visualizzazioni. Per variabili continue, testa l'ipotesi di normalità. Per variabili binarie,
 #' analizza se seguono una distribuzione di Bernoulli.
@@ -1238,4 +1234,3 @@ evaluate_synthetic_distribution_fit <- function(data,
     alpha = alpha
   )))
 }
-
