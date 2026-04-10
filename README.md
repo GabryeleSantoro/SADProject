@@ -1,4 +1,4 @@
-# SADProject - Statistica ed Analisi dei Dati
+# SADProject - Statistica ed Analisi dei Dati - Obesity
 
 Progetto per l'esame di **Statistica ed Analisi dei Dati (SAD)** che esegue un'analisi completa e strutturata di un dataset relativo all'obesità, confrontando dati reali con dati sintetici generati.
 
